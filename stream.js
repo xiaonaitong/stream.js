@@ -25,9 +25,11 @@ Stream.prototype = {
         if ( this.empty() ) {
             throw 'Cannot get the tail of the empty stream.';
         }
-        // TODO: memoize here
-        return this.tailPromise();
-    },
+        if ( this.tailValue === undefined ) {
+            this.tailValue = this.tailPromise();
+        }
+        return this.tailValue;
+    }, 
     item: function( n ) {
         if ( this.empty() ) {
             throw 'Cannot use item() on an empty stream.';
@@ -191,6 +193,45 @@ Stream.prototype = {
     toString: function() {
         // requires finite stream
         return '[stream head: ' + this.head() + '; tail: ' + this.tail() + ']';
+    },
+    toArray: function() {
+        var result = [];
+        this.walk(function (x) {
+                      result.push(x);
+                  });
+        return result;
+    },
+    mapi: function (f, start_index) {
+        var self = this;
+        if(start_index == undefined)
+            start_index = 0;
+        if (self.empty())
+            return self;
+        return new Stream(f(start_index, this.head()), function () {
+                              return self.tail().mapi(f, start_index + 1);
+                          });
+    },
+    //lazy merge
+    join: function () {
+        var self = this;
+        if (self.empty())
+            return new Stream();
+        var head = self.head();
+        var tail = self;
+        while(head.empty() && !(tail = tail.tail()).empty()) {
+            head = tail.head();
+        }
+        if (head.empty())
+            return new Stream();
+        return new Stream(head.head(), function () {
+                              return new Stream(head.tail(),
+                                                function () {
+                                                    return tail.tail();    
+                                                }
+                                               ).join();
+                          }
+                         ); 
+        
     }
 };
 
@@ -222,4 +263,7 @@ Stream.range = function ( low, high ) {
     return new Stream( low, function () {
         return Stream.range( low + 1, high );
     } );
+};
+Stream.cat = function (arr) {
+    return Stream.make.apply(null, arr);
 };
