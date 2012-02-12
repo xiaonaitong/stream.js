@@ -162,7 +162,12 @@ Stream.prototype = {
         }
         
         // create clone/a contructor which accepts a stream?
-        return new Stream( self.headValue, self.tailPromise );
+        return new Stream(
+            self.headValue,
+            function () {
+                return self.tail();
+            }
+        );
     },
     member: function( x ){
         var self = this;
